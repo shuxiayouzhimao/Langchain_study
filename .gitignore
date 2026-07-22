@@ -27,6 +27,7 @@ Thumbs.db
 # 本地运行时数据
 study/logs/
 study/memories*.json
+study/chroma_db/
 *.log
 
 # 构建产物

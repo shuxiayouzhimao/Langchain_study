@@ -27,6 +27,7 @@
 | [`study/union_4.py`](union_4.py) | Tool Calling 完整实现 | ✅ 完成 |
 | [`study/union_5.py`](union_5.py) | LCEL 管道与自定义 Parser | ✅ 完成 |
 | [`study/union_6.py`](union_6.py) | LangGraph 状态图 + 多工具 + 记忆 | ✅ 完成 |
+| [`study/union_7.py`](union_7.py) | RAG 知识库：文档加载、切片、检索、回答 | ✅ 完成 |
 
 ### 给 AI 的协作提示
 
@@ -474,6 +475,101 @@ graph.invoke({"messages": [...]}, config=config)
 | `Checkpointer requires thread_id` | 用了 `MemorySaver` 但 `invoke` 没传 `config` | 每次调用都传 `config={"configurable": {"thread_id": "xxx"}}` |
 | 模型不记得之前说过的话 | `thread_id` 每次都不一样 | 保持同一个 `thread_id` |
 | 路由返回的节点名不存在 | `should_continue` 返回值和 `add_node` 名不匹配 | 确保返回 `"tools"`、`"__end__"` 等已注册节点名 |
+
+---
+
+## 单元 7：RAG 知识库
+
+### 核心目标
+
+让助手能够读取本地文档，基于文档内容回答问题，而不是完全依赖模型预训练知识。
+
+### RAG 流程
+
+```
+本地文档
+    ↓
+加载（TextLoader / 内置读取）
+    ↓
+切片（RecursiveCharacterTextSplitter）
+    ↓
+Embedding（HuggingFaceEmbeddings）
+    ↓
+存入向量库（Chroma）
+    ↓
+用户提问 → 检索最相关片段
+    ↓
+把片段塞进 Prompt → 调 LLM → 生成答案
+```
+
+### 关键组件
+
+| 组件 | 作用 |
+|------|------|
+| `Document` | LangChain 文档对象，包含 `page_content` 和 `metadata` |
+| `RecursiveCharacterTextSplitter` | 按语义递归切分长文档 |
+| `HuggingFaceEmbeddings` | 把文本转成向量 |
+| `Chroma` | 本地向量数据库 |
+| `as_retriever` | 把向量库变成检索器 |
+
+### 独立包迁移
+
+LangChain 正在弃用 `langchain_community`，RAG 相关组件推荐用独立包：
+
+```python
+from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_chroma import Chroma
+```
+
+### 加载文档的两种方式
+
+**方式 1：TextLoader（需要 langchain_community）**
+
+```python
+from langchain_community.document_loaders import TextLoader
+loader = TextLoader("study/knowledge.md", encoding="utf-8")
+documents = loader.load()
+```
+
+**方式 2：Python 内置读取（推荐，无额外依赖）**
+
+```python
+from langchain_core.documents import Document
+
+with open("study/knowledge.md", "r", encoding="utf-8") as f:
+    text = f.read()
+documents = [Document(page_content=text, metadata={"source": "study/knowledge.md"})]
+```
+
+### 检索与生成
+
+```python
+retriever = vectorstore.as_retriever(search_kwargs={"k": 2})
+docs = retriever.invoke(question)
+context = "\n\n".join([doc.page_content for doc in docs])
+
+prompt = ChatPromptTemplate.from_template("""
+根据以下参考资料回答问题。如果资料里没有相关信息，请直接说"我不知道"。
+
+参考资料：
+{context}
+
+问题：{question}
+""")
+
+messages = prompt.invoke({"context": context, "question": question})
+response = llm.invoke(messages)
+```
+
+### 常见错误
+
+| 错误 | 原因 | 修复 |
+|------|------|------|
+| 输出乱码 | Windows 终端默认 GBK | 设置 `sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')` |
+| 检索结果不相关 | `chunk_size` 太大或 `k` 太小 | 调整切片大小和检索数量 |
+| 每次运行都重新建库 | `Chroma.from_documents` 每次都新建 | 判断数据库存在则加载 |
 
 ---
 

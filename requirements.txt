@@ -2,4 +2,7 @@ python-dotenv
 requests
 langchain-core
 langgraph
+langchain-text-splitters
+langchain-huggingface
+langchain-chroma
 gradio

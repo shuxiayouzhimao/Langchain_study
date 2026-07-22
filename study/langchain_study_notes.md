@@ -26,6 +26,7 @@
 | [`study/union_3.py`](union_3.py) | 手写 MyChatModel（继承 SimpleChatModel） | ✅ 完成 |
 | [`study/union_4.py`](union_4.py) | Tool Calling 完整实现 | ✅ 完成 |
 | [`study/union_5.py`](union_5.py) | LCEL 管道与自定义 Parser | ✅ 完成 |
+| [`study/union_6.py`](union_6.py) | LangGraph 状态图 + 多工具 + 记忆 | ✅ 完成 |
 
 ### 给 AI 的协作提示
 
@@ -408,6 +409,71 @@ chain = prompt | llm | UpperCaseParser()
 3. **消息抽象**：`BaseMessage` 统一了不同来源的消息，但需要注意 LangChain 格式与 API 格式的转换。
 4. **工具调用**：模型只负责"决定"调什么工具，工具的实际执行由外部代码完成，结果再返回给模型总结。
 5. **LCEL 组合**：用 `|` 将 prompt、模型、parser 组合成链，使代码更清晰、可复用。
+
+---
+
+## 单元 6：LangGraph 状态图
+
+### 核心目标
+
+把单元 4 手写的 tool calling 循环改造成可自动循环、可记忆的 LangGraph 状态图。
+
+### 关键组件
+
+| 组件 | 作用 |
+|------|------|
+| `StateGraph` | 定义 Agent 工作流图 |
+| `AgentState` | 图的共享状态，通常包含 `messages` |
+| `add_messages` | 自动合并各节点返回的消息 |
+| `add_node` / `add_edge` | 添加节点和固定流向 |
+| `add_conditional_edges` | 根据条件决定下一步 |
+| `MemorySaver` | 在同一线程内保存对话历史 |
+| `thread_id` | 区分不同对话会话 |
+
+### 图的结构
+
+```
+START → call_model → should_continue
+                          ↓
+              有 tool_calls    没有
+                   ↓              ↓
+                tools          END
+                   ↓
+              call_model
+                   ↓
+                 END
+```
+
+### 多工具管理
+
+用字典把工具名映射到工具函数，避免写一堆 `if/else`：
+
+```python
+tools_by_name = {
+    "get_current_weather": get_current_weather,
+    "get_time": get_time,
+}
+```
+
+### 记忆的关键
+
+```python
+from langgraph.checkpoint.memory import MemorySaver
+
+graph = graph_builder.compile(checkpointer=MemorySaver())
+config = {"configurable": {"thread_id": "session_1"}}
+graph.invoke({"messages": [...]}, config=config)
+```
+
+同一个 `thread_id` 的多次调用会自动继承历史状态；不同 `thread_id` 之间互相隔离。
+
+### 常见错误
+
+| 错误 | 原因 | 修复 |
+|------|------|------|
+| `Checkpointer requires thread_id` | 用了 `MemorySaver` 但 `invoke` 没传 `config` | 每次调用都传 `config={"configurable": {"thread_id": "xxx"}}` |
+| 模型不记得之前说过的话 | `thread_id` 每次都不一样 | 保持同一个 `thread_id` |
+| 路由返回的节点名不存在 | `should_continue` 返回值和 `add_node` 名不匹配 | 确保返回 `"tools"`、`"__end__"` 等已注册节点名 |
 
 ---
 

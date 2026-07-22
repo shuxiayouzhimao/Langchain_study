@@ -21,6 +21,7 @@ XlingAI/
 │   ├── union_3.py              # 手写 MyChatModel（继承 SimpleChatModel）
 │   ├── union_4.py              # Tool Calling 完整实现
 │   ├── union_5.py              # LCEL 管道与自定义 Parser
+│   ├── union_6.py              # LangGraph 状态图 + 多工具 + 记忆
 │   └── langchain_study_notes.md # 学习笔记（AI 可读）
 ├── .env                        # 环境变量（不提交到 Git）
 ├── .env.example                # 环境变量模板
@@ -68,9 +69,18 @@ python study/union_4.py
 
 # 运行 LCEL 管道示例
 python study/union_5.py
+
+# 运行 LangGraph Agent 示例
+python study/union_6.py
 ```
 
 ## 学习路线
+
+1. **LangChain Core 基础**：消息对象、API 调用、自定义 ChatModel、Tool Calling、LCEL
+2. **LangGraph 状态图**：用 `StateGraph` 构建多步 Agent，支持工具循环与记忆
+3. **RAG 知识库**：加载本地文档，切片、向量化、检索、回答
+4. **长期记忆系统**：事实记忆、对话摘要、按主题检索
+5. **产品化界面**：Gradio / Streamlit / FastAPI
 
 详见 [`study/langchain_study_notes.md`](study/langchain_study_notes.md)。
 

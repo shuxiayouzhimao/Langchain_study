@@ -1,4 +1,5 @@
 python-dotenv
 requests
 langchain-core
+langgraph
 gradio

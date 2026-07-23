@@ -28,6 +28,7 @@ Thumbs.db
 study/logs/
 study/memories*.json
 study/chroma_db/
+study/memory.json
 *.log
 
 # 构建产物

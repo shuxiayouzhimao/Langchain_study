@@ -28,6 +28,7 @@
 | [`study/union_5.py`](union_5.py) | LCEL 管道与自定义 Parser | ✅ 完成 |
 | [`study/union_6.py`](union_6.py) | LangGraph 状态图 + 多工具 + 记忆 | ✅ 完成 |
 | [`study/union_7.py`](union_7.py) | RAG 知识库：文档加载、切片、检索、回答 | ✅ 完成 |
+| [`study/union_8.py`](union_8.py) | 长期记忆系统：事实提取、持久化、跨会话记忆 | ✅ 完成 |
 
 ### 给 AI 的协作提示
 
@@ -570,6 +571,81 @@ response = llm.invoke(messages)
 | 输出乱码 | Windows 终端默认 GBK | 设置 `sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')` |
 | 检索结果不相关 | `chunk_size` 太大或 `k` 太小 | 调整切片大小和检索数量 |
 | 每次运行都重新建库 | `Chroma.from_documents` 每次都新建 | 判断数据库存在则加载 |
+
+---
+
+## 单元 8：长期记忆系统
+
+### 核心目标
+
+让助手能够跨会话记住用户的关键信息（偏好、习惯、重要事实），而不是只在当前对话历史里找答案。
+
+### 与短期记忆的区别
+
+| 类型 | 保存内容 | 生命周期 | 实现方式 |
+|------|---------|---------|---------|
+| 短期记忆（MemorySaver） | 完整消息历史 | 同一次 `thread_id` 会话 | `langgraph.checkpoint.memory.MemorySaver` |
+| 长期记忆 | 提取的关键事实 | 跨会话、跨重启 | 本地 JSON 文件 + 反思节点 |
+
+### 实现思路
+
+```
+对话结束
+    ↓
+reflect_node（反思节点）
+    ↓
+reflect_on_conversation（让 LLM 提取事实）
+    ↓
+LongTermMemory.add_fact()（保存到 memory.json）
+    ↓
+下次对话时，call_model 读取记忆注入 system prompt
+```
+
+### 关键组件
+
+| 组件 | 作用 |
+|------|------|
+| `LongTermMemory` | 管理本地 JSON 记忆文件 |
+| `reflect_on_conversation` | 让 LLM 从对话中提取值得记住的事实 |
+| `reflect_node` | LangGraph 节点，在模型回答后自动执行反思 |
+| `memory_store.get_facts()` | 读取记忆，注入 system prompt |
+
+### 记忆注入 prompt
+
+```python
+facts = memory_store.get_facts()
+memory_text = "\n".join([f["content"] for f in facts])
+
+system_msg = SystemMessage(content=f"""
+以下是已记住的关于用户的信息：
+{memory_text}
+
+请根据以上信息和当前对话回答问题。
+""")
+
+full_messages = [system_msg] + messages
+response = llm_with_tools.invoke(full_messages)
+```
+
+### 图结构
+
+```
+START → call_model → should_continue
+                        ↓
+             有 tool_calls   没有
+                  ↓            ↓
+               tools         reflect
+                  ↓            ↓
+              call_model      END
+```
+
+### 常见问题
+
+| 问题 | 原因 | 修复方向 |
+|------|------|---------|
+| 记忆重复 | 每次反思都添加相同事实 | 添加前去重或相似度合并 |
+| 记忆不生效 | `call_model` 没注入 system prompt | 在调用 LLM 前读取 `memory_store.get_facts()` |
+| 启动慢 | 从 `union_6` 导入工具触发 RAG 初始化 | 把工具函数抽到独立模块 |
 
 ---
 

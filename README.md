@@ -23,6 +23,7 @@ XlingAI/
 │   ├── union_5.py              # LCEL 管道与自定义 Parser
 │   ├── union_6.py              # LangGraph 状态图 + 多工具 + 记忆
 │   ├── union_7.py              # RAG 知识库：文档加载、切片、检索、回答
+│   ├── union_8.py              # 长期记忆系统：事实提取、持久化、跨会话记忆
 │   └── langchain_study_notes.md # 学习笔记（AI 可读）
 ├── .env                        # 环境变量（不提交到 Git）
 ├── .env.example                # 环境变量模板
@@ -76,6 +77,9 @@ python study/union_6.py
 
 # 运行 RAG 知识库示例
 python study/union_7.py
+
+# 运行长期记忆系统示例
+python study/union_8.py
 ```
 
 ## 学习路线

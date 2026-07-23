@@ -3,66 +3,17 @@ import io
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 from typing import Annotated
-import os
-from langchain_core.tools import tool
 from typing_extensions import TypedDict
 from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage, ToolMessage, HumanMessage, SystemMessage
-from union_4 import MyChatModel, get_current_weather
+from union_4 import MyChatModel
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 
-from langchain_core.documents import Document
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_chroma import Chroma
+from study_tools import get_current_weather, get_time, query_knowledge_base
 
 class AgentState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
-
-# ========== RAG 初始化（只执行一次） ==========
-def _init_rag_retriever():
-    """初始化知识库检索器：如果向量库已存在则加载，否则创建。"""
-    embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
-    )
-
-    if os.path.exists("study/chroma_db"):
-        print("[RAG] 加载已有向量库...")
-        vectorstore = Chroma(
-            persist_directory="study/chroma_db",
-            embedding_function=embeddings
-        )
-    else:
-        print("[RAG] 创建新的向量库...")
-        with open("study/knowledge.md", "r", encoding="utf-8") as f:
-            text = f.read()
-        documents = [Document(page_content=text, metadata={"source": "study/knowledge.md"})]
-
-        splitter = RecursiveCharacterTextSplitter(chunk_size=200, chunk_overlap=50)
-        chunks = splitter.split_documents(documents)
-
-        vectorstore = Chroma.from_documents(
-            documents=chunks,
-            embedding=embeddings,
-            persist_directory="study/chroma_db"
-        )
-
-    return vectorstore.as_retriever(search_kwargs={"k": 2})
-
-retriever = _init_rag_retriever()
-
-# ========== 工具定义 ==========
-@tool
-def query_knowledge_base(question: str) -> str:
-    """查询公司内部知识库，回答关于员工政策、项目介绍等文档内容的问题"""
-    docs = retriever.invoke(question)
-    return "\n\n".join([doc.page_content for doc in docs])
-
-@tool
-def get_time(city: str) -> str:
-    """获取指定城市的当前时间"""
-    return f"{city} 的当前时间是 15:00"
 
 llm = MyChatModel()
 llm_with_tools = llm.bind_tools([get_current_weather, get_time, query_knowledge_base])

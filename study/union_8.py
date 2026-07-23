@@ -15,21 +15,10 @@ from langchain_core.tools import tool
 from langgraph.graph import END, START, StateGraph
 import numpy as np
 from langchain_huggingface import HuggingFaceEmbeddings
-
-# ========== 工具定义 ==========
-@tool
-def get_time(city: str) -> str:
-    """获取指定城市的当前时间"""
-    return f"{city} 的当前时间是 15:00"
-
-@tool
-def get_current_weather(city: str) -> str:
-    """获取指定城市的实时天气信息。当用户询问天气时必须调用此工具。"""
-    return f"{city} 天气晴朗，温度 25 摄氏度"
-
+from study_tools import get_current_weather, get_time, query_knowledge_base
 
 llm = MyChatModel()
-llm_with_tools = llm.bind_tools([get_current_weather, get_time])
+llm_with_tools = llm.bind_tools([get_current_weather, get_time, query_knowledge_base])
 
 class LongTermMemory:
     def __init__(self, memory_file="study/memory.json"):
@@ -160,6 +149,7 @@ def should_continue(state: AgentState) -> str:
 tool_by_name = {
     "get_current_weather": get_current_weather,
     "get_time": get_time,
+    "query_knowledge_base": query_knowledge_base,
 }
 
 def tool_nodes(state: AgentState) -> dict:
@@ -243,3 +233,15 @@ if __name__ == "__main__":
         config={"configurable": {"thread_id": "session_2"}}
     )
     print("第二次结果：", result_2["messages"][-1].content)
+
+    # 第三轮：测试知识库工具
+    print("\n=== 第三轮：知识库 ===")
+    result_3 = graph.invoke({
+        "messages": [
+            SystemMessage(content="你可以查询天气、时间，也可以查询公司内部知识库回答政策问题。"),
+            HumanMessage(content="员工年假有多少天？")
+        ]
+        },
+        config={"configurable": {"thread_id": "session_3"}}
+    )
+    print("第三轮结果：", result_3["messages"][-1].content)

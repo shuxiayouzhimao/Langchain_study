@@ -13,6 +13,8 @@ from langgraph.graph import add_messages
 from typing_extensions import TypedDict
 from langchain_core.tools import tool
 from langgraph.graph import END, START, StateGraph
+import numpy as np
+from langchain_huggingface import HuggingFaceEmbeddings
 
 # ========== 工具定义 ==========
 @tool
@@ -33,6 +35,26 @@ class LongTermMemory:
     def __init__(self, memory_file="study/memory.json"):
         self.memory_file = memory_file
         self.facts = self._load()
+        self.embeddings = HuggingFaceEmbeddings(
+            model_name = "sentence-transformers/all-MiniLM-L6-v2"
+        )
+    
+    def _cosine_similarity(self, vec1, vec2):
+        """计算两个向量的余弦相似度"""
+        return float(np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2)))
+    
+    def _find_similar_fact(self, content: str, threshold: float = 0.85):
+        """查找是否有语义相似的记忆"""
+        if not self.facts:
+            return None
+        
+        new_vec = self.embeddings.embed_query(content)
+
+        for fact in self.facts:
+            old_vec = self.embeddings.embed_query(fact["content"])
+            similarity = self._cosine_similarity(new_vec, old_vec)
+            if similarity > threshold:
+                return fact
 
     def _load(self):
         if os.path.exists(self.memory_file):
@@ -41,6 +63,10 @@ class LongTermMemory:
         return []
     
     def add_fact(self, content: str, category: str = "general"):
+        similar_fact = self._find_similar_fact(content)
+        if similar_fact:
+            print(f"[记忆去重] 跳过重复内容：{content}")
+            return
         fact = {
             "id": len(self.facts) + 1,
             "content": content,
@@ -195,7 +221,6 @@ if __name__ == "__main__":
     )
     graph_builder.add_edge("tools", "call_model")
     graph_builder.add_edge("reflect", END)
-    graph_builder.compile()
 
     graph = graph_builder.compile()
     

@@ -24,7 +24,13 @@ XlingAI/
 │   ├── union_6.py              # LangGraph 状态图 + 多工具 + 记忆
 │   ├── union_7.py              # RAG 知识库：文档加载、切片、检索、回答
 │   ├── union_8.py              # 长期记忆系统：事实提取、持久化、跨会话记忆
+│   ├── study_tools.py          # 共享工具模块（天气、时间、知识库）
+│   ├── knowledge.md            # RAG 示例文档
 │   └── langchain_study_notes.md # 学习笔记（AI 可读）
+├── app/                        # 产品化应用
+│   ├── agent.py                # Agent 核心逻辑
+│   ├── main.py                 # Gradio 界面入口
+│   └── README.md
 ├── .env                        # 环境变量（不提交到 Git）
 ├── .env.example                # 环境变量模板
 ├── .gitignore
@@ -81,6 +87,14 @@ python study/union_7.py
 # 运行长期记忆系统示例
 python study/union_8.py
 ```
+
+## 启动个人助手 Web 界面
+
+```bash
+python -m app.main
+```
+
+启动后浏览器打开 `http://127.0.0.1:7860`，即可与助手对话。详见 [`app/README.md`](app/README.md)。
 
 ## 学习路线
 

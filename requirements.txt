@@ -5,4 +5,5 @@ langgraph
 langchain-text-splitters
 langchain-huggingface
 langchain-chroma
-gradio
+numpy
+gradio>=5,<6
